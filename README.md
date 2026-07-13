@@ -8,6 +8,9 @@ TypeScript SDK for interacting with the Slvr protocol on Robinhood Chain.
 npm install @slvr-labs/sdk viem
 ```
 
+Ships both **ESM and CommonJS** builds with TypeScript declarations, so `import`
+and `require` both work out of the box.
+
 ## Quick Start
 
 The fastest way — `SlvrSDK.connect` builds resilient clients (Multicall3

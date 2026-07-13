@@ -2,14 +2,19 @@
   "name": "@slvr-labs/sdk",
   "version": "0.1.0",
   "description": "TypeScript SDK for interacting with the Slvr protocol on Robinhood Chain",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "module": "dist/index.js",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "module": "./dist/index.mjs",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.js"
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      }
     }
   },
   "files": [
@@ -20,7 +25,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsc",
+    "build": "tsup",
     "prepublishOnly": "npm run build",
     "clean": "rm -rf dist",
     "typecheck": "tsc --noEmit",
@@ -58,7 +63,8 @@
   "devDependencies": {
     "@types/node": "^20",
     "typescript": "^5.0.0",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "tsup": "^8.3.5"
   },
   "peerDependencies": {
     "viem": "^2.0.0"
@@ -67,5 +73,6 @@
     "viem": {
       "optional": false
     }
-  }
+  },
+  "sideEffects": false
 }
