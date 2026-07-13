@@ -843,6 +843,14 @@ const txHash = await strategy.betOnLeastAllocated(
 
 See the [examples README](./examples/README.md) for more detailed examples and strategies.
 
+## Disclaimer
+
+This SDK is built for real use — it interacts with live smart contracts on
+Robinhood Chain and moves real ETH and SLVR. That also means it's provided **"as
+is", without warranty of any kind** (see [LICENSE](./LICENSE)); you're
+responsible for the transactions you send. Sensible precautions: review your code,
+start with small amounts, and keep your keys safe.
+
 ## License
 
 MIT
