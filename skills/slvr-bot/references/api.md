@@ -70,6 +70,13 @@ Writes:
 - `donateSlvrToJackpot(amount)`, `addEthToJackpot(value)`.
 - `withdrawUnrefinedSlvr()` — cash out mined SLVR (net of refining fee).
 - `checkpoint(account)` — force-settle miner accrual (rarely needed; claim/withdraw do it).
+- `getRoundJackpot(id)` — the round's jackpot contract address (zero if none).
+
+Preflight & errors:
+- `simulateBet(params)` — `eth_call` preflight; throws a typed `SlvrRevertError` on revert (no tx sent).
+- `bet`/`claim` accept `overrides?: TxOverrides` ({ gas, nonce, maxFeePerGas, … }) and decode reverts into `SlvrRevertError`.
+- `decodeSlvrRevert(err): SlvrRevertError | null` — decode any caught contract error (has `.errorName`, e.g. `InsufficientValue`, `RoundNotOpen`).
+- SDK: `getJackpotPool(id?)` → jackpot pool wei (0 if none); `estimateRoundEv` reads it automatically.
 
 Reactive (prefer over polling):
 - `waitForResolution(roundId, { pollIntervalMs?, timeoutMs? }): Promise<RoundInfo>` — resolves when the round settles.

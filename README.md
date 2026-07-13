@@ -443,6 +443,32 @@ const stopBets = sdk.lottery.watchBets((e) => console.log(`bet of ${e.total} on 
 // later: stopResolved(); stopBets();
 ```
 
+### Preflight, typed errors & gas control
+
+Catch reverts before spending gas, and get the protocol's custom errors decoded
+into typed, readable failures:
+
+```typescript
+import { SlvrRevertError, decodeSlvrRevert } from '@slvr-labs/sdk';
+
+// Preflight a bet (eth_call, no tx). Throws a typed SlvrRevertError on revert.
+try {
+  await sdk.lottery.simulateBet({ roundId, squares, amounts });
+  await sdk.lottery.bet({ roundId, squares, amounts });
+} catch (e) {
+  if (e instanceof SlvrRevertError) console.log(e.errorName, '—', e.message); // e.g. "RoundNotOpen — betting is closed…"
+}
+
+// bet() and claim() also decode reverts, and accept gas/nonce overrides:
+await sdk.lottery.bet({ roundId, squares, amounts, overrides: { maxFeePerGas, nonce } });
+
+// Decode any caught contract error yourself:
+const revert = decodeSlvrRevert(err); // SlvrRevertError | null
+```
+
+`sdk.getJackpotPool(roundId?)` returns the round's jackpot pool in wei (0 when no
+jackpot is set), and `estimateRoundEv` now reads it automatically.
+
 ### Helper Functions
 
 #### Format Token Amounts

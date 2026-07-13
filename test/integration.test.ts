@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { SlvrSDK, GRID_SIZE } from '../src';
+import { SlvrSDK, SlvrRevertError, GRID_SIZE } from '../src';
 
 /**
  * Live/fork integration test. Skipped unless `SLVR_TEST_RPC` is set, so CI stays
@@ -59,5 +59,26 @@ describe.skipIf(!RPC)('integration (reads against a live/fork RPC)', () => {
     const roundId = await sdk.lottery.currentRoundId();
     const t = await sdk.getTimeRemaining(roundId);
     expect(t).toBeGreaterThanOrEqual(0);
+  });
+
+  it('reads the jackpot pool (0 when no jackpot is set)', { timeout: 30_000 }, async () => {
+    const pool = await sdk.getJackpotPool();
+    expect(typeof pool).toBe('bigint');
+    expect(pool).toBeGreaterThanOrEqual(0n);
+  });
+});
+
+// simulateBet needs an account. Set SLVR_TEST_PK (a burner key — no funds required
+// for a call that's expected to revert) to run this.
+const PK = process.env.SLVR_TEST_PK as `0x${string}` | undefined;
+describe.skipIf(!RPC || !PK)('integration (preflight/simulation)', () => {
+  const sdk = SlvrSDK.connect({ rpcUrl: RPC, privateKey: PK });
+
+  it('simulateBet decodes a revert into a typed SlvrRevertError', { timeout: 30_000 }, async () => {
+    const cur = await sdk.lottery.currentRoundId();
+    // Betting on a long-past round should revert with a decodable custom error.
+    await expect(
+      sdk.lottery.simulateBet({ roundId: cur - 5n, squares: [0], amounts: [1_000_000_000_000_000n] })
+    ).rejects.toBeInstanceOf(SlvrRevertError);
   });
 });

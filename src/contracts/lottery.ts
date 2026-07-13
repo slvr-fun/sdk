@@ -1,6 +1,6 @@
 import { Address, parseAbi, PublicClient, WalletClient } from 'viem';
 import { RoundInfo, MinerState, BetParams, ClaimParams, ClaimParamsAdvanced } from '../types';
-import { WalletClientRequiredError, ContractCallError } from '../errors';
+import { WalletClientRequiredError, ContractCallError, decodeSlvrRevert } from '../errors';
 import { validateAddress, validateAmount, validateSquares, validateArrayLengths, waitForTransactionReceipt } from '../utils';
 import { SlvrGridLotteryEvents, BetPlacedEvent, RoundResolvedEvent } from '../events';
 
@@ -56,6 +56,27 @@ export class SlvrGridLottery {
     'function addEthToJackpot() payable',
     'function checkpoint(address account)',
     'function withdrawUnrefinedSlvr() returns (uint256 totalPayout, uint256 refiningFee)',
+    'function getRoundJackpot(uint256 roundId) view returns (address)',
+
+    // Custom errors — so viem can decode reverts (see decodeSlvrRevert / simulateBet)
+    'error InsufficientValue()',
+    'error RoundNotOpen()',
+    'error NotResolved()',
+    'error ResolveRequested()',
+    'error BadClaim()',
+    'error NoAccount()',
+    'error BadAmount()',
+    'error BadSquare()',
+    'error DupSquare()',
+    'error BadArrays()',
+    'error ValueNotSum()',
+    'error MustSumTo100Percent()',
+    'error NotAuthorized()',
+    'error NotCurrentRound()',
+    'error CannotDelegateToSelf()',
+    'error RandomnessNotSettled()',
+    'error TransferFailed()',
+    'error JackpotNotSet()',
   ]);
 
   constructor(publicClient: PublicClient, walletClient: WalletClient | undefined, address: Address) {
@@ -230,6 +251,20 @@ export class SlvrGridLottery {
       winningSquare: round.winningSquare,
       secondsUntilBettingClose: secondsLeft > 0 ? secondsLeft : 0,
     };
+  }
+
+  /**
+   * Get the jackpot contract address for a round (zero address if no jackpot is
+   * set). Read that contract's `jackpotPool()` for the pool balance — or use the
+   * SDK helper `getJackpotPool(roundId)`.
+   */
+  async getRoundJackpot(roundId: bigint): Promise<Address> {
+    return await this.publicClient.readContract({
+      address: this.address,
+      abi: SlvrGridLottery.ABI,
+      functionName: 'getRoundJackpot',
+      args: [roundId],
+    }) as Address;
   }
 
   /**
@@ -418,7 +453,7 @@ export class SlvrGridLottery {
       throw new WalletClientRequiredError('betting');
     }
 
-    const { roundId, squares, amounts, beneficiary } = params;
+    const { roundId, squares, amounts, beneficiary, overrides } = params;
 
     // Validate inputs
     if (roundId < 0n) {
@@ -426,7 +461,7 @@ export class SlvrGridLottery {
     }
     validateSquares(squares);
     validateArrayLengths([squares, amounts], ['squares', 'amounts']);
-    
+
     for (const amount of amounts) {
       validateAmount(amount, 'bet amount');
     }
@@ -435,40 +470,70 @@ export class SlvrGridLottery {
 
     try {
       // Check if account exists, if not, add account deposit to the value sent
-      const beneficiaryAddress = beneficiary 
+      const beneficiaryAddress = beneficiary
         ? validateAddress(beneficiary, 'beneficiary')
         : this.walletClient.account!.address;
-      
+
       const hasAccount_ = await this.hasAccount(beneficiaryAddress);
       const accountDeposit_ = hasAccount_ ? 0n : await this.accountDeposit();
       const totalValue = totalAmount + accountDeposit_;
+      const req = beneficiary
+        ? { functionName: 'betFor' as const, args: [roundId, beneficiaryAddress, squares, amounts] }
+        : { functionName: 'bet' as const, args: [roundId, squares, amounts] };
 
-      if (beneficiary) {
-        return await this.walletClient.writeContract({
-          address: this.address,
-          abi: SlvrGridLottery.ABI,
-          functionName: 'betFor',
-          args: [roundId, beneficiaryAddress, squares, amounts],
-          value: totalValue,
-          account: this.walletClient.account!,
-          chain: null,
-        });
-      } else {
-        return await this.walletClient.writeContract({
-          address: this.address,
-          abi: SlvrGridLottery.ABI,
-          functionName: 'bet',
-          args: [roundId, squares, amounts],
-          value: totalValue,
-          account: this.walletClient.account!,
-          chain: null,
-        });
-      }
+      return await this.walletClient.writeContract({
+        address: this.address,
+        abi: SlvrGridLottery.ABI,
+        functionName: req.functionName,
+        args: req.args as never,
+        value: totalValue,
+        account: this.walletClient.account!,
+        chain: null,
+        ...((overrides ?? {}) as Record<string, unknown>),
+      } as never);
     } catch (error) {
       if (error instanceof WalletClientRequiredError || error instanceof ContractCallError) {
         throw error;
       }
+      const revert = decodeSlvrRevert(error);
+      if (revert) throw revert;
       throw new ContractCallError(`Failed to place bet: ${error instanceof Error ? error.message : String(error)}`, error);
+    }
+  }
+
+  /**
+   * Preflight a bet with `eth_call` (no transaction sent). Resolves if the bet
+   * would succeed; otherwise throws a {@link SlvrRevertError} with the decoded
+   * custom error (e.g. `RoundNotOpen`, `InsufficientValue`). Catch reverts before
+   * spending gas.
+   */
+  async simulateBet(params: BetParams): Promise<void> {
+    if (!this.walletClient) {
+      throw new WalletClientRequiredError('simulating a bet');
+    }
+    const { roundId, squares, amounts, beneficiary } = params;
+    validateSquares(squares);
+    validateArrayLengths([squares, amounts], ['squares', 'amounts']);
+    const totalAmount = amounts.reduce((sum, amt) => sum + amt, 0n);
+    const beneficiaryAddress = beneficiary
+      ? validateAddress(beneficiary, 'beneficiary')
+      : this.walletClient.account!.address;
+    const hasAccount_ = await this.hasAccount(beneficiaryAddress);
+    const value = totalAmount + (hasAccount_ ? 0n : await this.accountDeposit());
+    const req = beneficiary
+      ? { functionName: 'betFor' as const, args: [roundId, beneficiaryAddress, squares, amounts] }
+      : { functionName: 'bet' as const, args: [roundId, squares, amounts] };
+    try {
+      await this.publicClient.simulateContract({
+        address: this.address,
+        abi: SlvrGridLottery.ABI,
+        functionName: req.functionName,
+        args: req.args as never,
+        value,
+        account: this.walletClient.account!,
+      });
+    } catch (error) {
+      throw decodeSlvrRevert(error) ?? error;
     }
   }
 
@@ -497,11 +562,14 @@ export class SlvrGridLottery {
         args: [params.roundId],
         account: this.walletClient.account!,
         chain: null,
-      });
+        ...((params.overrides ?? {}) as Record<string, unknown>),
+      } as never);
     } catch (error) {
       if (error instanceof WalletClientRequiredError || error instanceof ContractCallError) {
         throw error;
       }
+      const revert = decodeSlvrRevert(error);
+      if (revert) throw revert;
       throw new ContractCallError(`Failed to claim rewards: ${error instanceof Error ? error.message : String(error)}`, error);
     }
   }

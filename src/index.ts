@@ -460,7 +460,7 @@ export class SlvrSDK {
   }): Promise<GridMiningEv> {
     const roundId = params.roundId ?? (await this.lottery.currentRoundId());
 
-    const [potEth, emissionPerRound, slvrPriceEth, feeBps] = await Promise.all([
+    const [potEth, emissionPerRound, slvrPriceEth, feeBps, jackpotPoolEth] = await Promise.all([
       params.pot !== undefined
         ? Promise.resolve(params.pot)
         : this.lottery
@@ -473,6 +473,10 @@ export class SlvrSDK {
         ? Promise.resolve(params.slvrPriceEth)
         : this.getSlvrPriceInEth(),
       this.lottery.protocolFeeBps(),
+      // Auto-read the jackpot pool (0 if no jackpot is set for the round / read fails).
+      params.jackpotPool !== undefined
+        ? Promise.resolve(params.jackpotPool)
+        : this.getJackpotPool(roundId).then((v) => Number(formatEther(v))).catch(() => 0),
     ]);
 
     return computeGridMiningEv({
@@ -482,9 +486,22 @@ export class SlvrSDK {
       slvrPriceEth,
       feeBps,
       cashOut: params.cashOut,
-      jackpotPool: params.jackpotPool,
+      jackpotPool: jackpotPoolEth,
       jackpotOdds: params.jackpotOdds,
     });
+  }
+
+  /**
+   * Helper: current jackpot pool for a round, in wei (0 if no jackpot is set).
+   *
+   * Resolves the round's jackpot contract via `getRoundJackpot` and reads its
+   * `jackpotPool()`. Defaults to the current round.
+   */
+  async getJackpotPool(roundId?: bigint): Promise<bigint> {
+    const id = roundId ?? (await this.lottery.currentRoundId());
+    const jackpotAddress = await this.lottery.getRoundJackpot(id);
+    if (jackpotAddress === '0x0000000000000000000000000000000000000000') return 0n;
+    return await new SlvrJackpot(this.config.publicClient, undefined, jackpotAddress).jackpotPool();
   }
 }
 

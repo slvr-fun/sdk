@@ -145,6 +145,18 @@ export interface GameInfo {
 }
 
 /**
+ * Optional transaction overrides passed through to viem's `writeContract`
+ * (e.g. to manage gas or nonce in a high-throughput bot).
+ */
+export interface TxOverrides {
+  gas?: bigint;
+  nonce?: number;
+  maxFeePerGas?: bigint;
+  maxPriorityFeePerGas?: bigint;
+  gasPrice?: bigint;
+}
+
+/**
  * Bet parameters
  */
 export interface BetParams {
@@ -152,6 +164,8 @@ export interface BetParams {
   squares: number[];
   amounts: bigint[];
   beneficiary?: Address;
+  /** Optional gas/nonce overrides for the transaction. */
+  overrides?: TxOverrides;
 }
 
 /**
@@ -159,6 +173,8 @@ export interface BetParams {
  */
 export interface ClaimParams {
   roundId: bigint;
+  /** Optional gas/nonce overrides for the transaction. */
+  overrides?: TxOverrides;
 }
 
 /**
