@@ -1,5 +1,9 @@
 # @slvr-labs/sdk
 
+[![npm](https://img.shields.io/npm/v/@slvr-labs/sdk.svg)](https://www.npmjs.com/package/@slvr-labs/sdk)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
+[![types: included](https://img.shields.io/badge/types-included-blue.svg)](#installation)
+
 TypeScript SDK for interacting with the Slvr protocol on Robinhood Chain.
 
 ## Installation
