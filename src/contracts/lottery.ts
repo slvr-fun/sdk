@@ -194,6 +194,45 @@ export class SlvrGridLottery {
   }
 
   /**
+   * Get a compact, batched snapshot of a round's live state — the fields a bot
+   * checks every tick — in one shot. Defaults to the current round.
+   *
+   * `secondsUntilBettingClose` is computed from the chain's `block.timestamp`
+   * (not the local clock), so it's accurate even if your device clock drifts.
+   * With a multicall-batching client the reads collapse into ~2 RPC calls.
+   */
+  async getRoundState(roundId?: bigint): Promise<{
+    roundId: bigint;
+    open: boolean;
+    resolved: boolean;
+    bettingEnd: bigint;
+    roundEnd: bigint;
+    totalWager: bigint;
+    winningSquare: number;
+    secondsUntilBettingClose: number;
+  }> {
+    const id = roundId ?? (await this.currentRoundId());
+    const [round, open, bettingEnd, roundEnd, block] = await Promise.all([
+      this.getRound(id),
+      this.roundOpen(id),
+      this.bettingEnd(id),
+      this.roundEnd(id),
+      this.publicClient.getBlock(),
+    ]);
+    const secondsLeft = Number(bettingEnd - block.timestamp);
+    return {
+      roundId: id,
+      open,
+      resolved: round.resolved,
+      bettingEnd,
+      roundEnd,
+      totalWager: round.totalWager,
+      winningSquare: round.winningSquare,
+      secondsUntilBettingClose: secondsLeft > 0 ? secondsLeft : 0,
+    };
+  }
+
+  /**
    * Get total amount bet on a square for a round
    */
   async getTotalOnSquare(roundId: bigint, square: number): Promise<bigint> {

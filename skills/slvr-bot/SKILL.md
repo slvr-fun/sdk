@@ -68,17 +68,18 @@ with `publicClient.waitForTransactionReceipt`.
 
 ## Recipe: read the current round
 
+The one-call, per-tick snapshot most bots want (batched; `secondsUntilBettingClose`
+uses chain time, not your local clock):
+
 ```typescript
-const roundId = await sdk.lottery.currentRoundId();
-const [open, squares] = await Promise.all([
-  sdk.lottery.roundOpen(roundId),
-  sdk.lottery.getRoundSquares(roundId), // [{ square, total, bettors }] × 25
-]);
-const pot = squares.reduce((sum, s) => sum + s.total, 0n);
+const s = await sdk.lottery.getRoundState(); // current round by default
+// { roundId, open, resolved, bettingEnd, roundEnd, totalWager (pot), winningSquare, secondsUntilBettingClose }
+if (s.open && s.secondsUntilBettingClose > 10) { /* enough time to bet */ }
 ```
 
-Gate "can I still bet?" on **`bettingEnd(roundId)`** (a unix-seconds timestamp),
-not on `roundEnd` — betting can close before the round ends.
+Need the per-square breakdown? `getRoundSquares(roundId)` returns `[{ square,
+total, bettors }] × 25`. Gate "can I still bet?" on **`bettingEnd`** (or
+`secondsUntilBettingClose`), not on `roundEnd` — betting closes first.
 
 ## Recipe: place a bet
 

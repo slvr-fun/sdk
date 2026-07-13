@@ -52,6 +52,7 @@ new SlvrSDK({ publicClient, walletClient?, addresses })
 Reads:
 - `currentRoundId()`, `roundStart(id)`, `roundEnd(id)`, `roundOpen(id)`, `bettingEnd(id)`, `latestResolvedRoundId()`.
 - `getRound(id): Promise<RoundInfo>` — flat struct: `{ roundId, requestedAt, resolved, randomnessId, randomnessValue, winningSquare, jackpotHit, singleMinerRound, singleMinerWinner, totalWager, fee, winnerTotal, potForWinners, slvrForWinners, payoutMulWad, slvrMulWad, totalUnclaimedSlvr }`.
+- `getRoundState(id?): Promise<{ roundId, open, resolved, bettingEnd, roundEnd, totalWager, winningSquare, secondsUntilBettingClose }>` — batched per-tick snapshot; countdown uses `block.timestamp`. Defaults to current round.
 - `getTotalOnSquare(id, square)`, `getBettorsOnSquare(id, square)`, `getUserBet(id, square, bettor)`, `getHasClaimed(id, user)`, `hasAccount(account)`, `getDelegate(user, delegate)`.
 - `getExpectedReward(account, id)` — estimated reward (wei).
 - `getMinerState(account): Promise<MinerState>` — `{ rewardsSlvr, refinedAccrued, indexSnapshot, hasAccount }`.

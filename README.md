@@ -533,6 +533,7 @@ Interface for the lottery contract.
 - `getExpectedReward(account: Address, roundId: bigint): Promise<bigint>` - estimated reward for an account in a round
 - `latestResolvedRoundId(): Promise<bigint>`
 - `getRound(roundId: bigint): Promise<RoundInfo>` - flat 16-value round tuple
+- `getRoundState(roundId?: bigint): Promise<{ roundId, open, resolved, bettingEnd, roundEnd, totalWager, winningSquare, secondsUntilBettingClose }>` - **batched** per-tick snapshot; `secondsUntilBettingClose` uses on-chain `block.timestamp`. Defaults to the current round.
 - `getTotalOnSquare(roundId: bigint, square: number): Promise<bigint>`
 - `getBettorsOnSquare(roundId: bigint, square: number): Promise<bigint>`
 - `getUserBet(roundId: bigint, square: number, bettor: Address): Promise<bigint>`

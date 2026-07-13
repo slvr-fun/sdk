@@ -45,4 +45,19 @@ describe.skipIf(!RPC)('integration (reads against a live/fork RPC)', () => {
     expect(ev.breakEvenPot).toBeGreaterThan(0);
     expect(typeof ev.profitable).toBe('boolean');
   });
+
+  it('returns a batched round-state snapshot with block-time based countdown', { timeout: 30_000 }, async () => {
+    const s = await sdk.lottery.getRoundState();
+    expect(s.roundId).toBeGreaterThan(0n);
+    expect(typeof s.open).toBe('boolean');
+    expect(typeof s.resolved).toBe('boolean');
+    expect(s.secondsUntilBettingClose).toBeGreaterThanOrEqual(0);
+    expect(s.bettingEnd).toBeGreaterThan(0n);
+  });
+
+  it('getTimeRemaining uses chain time and is non-negative', { timeout: 30_000 }, async () => {
+    const roundId = await sdk.lottery.currentRoundId();
+    const t = await sdk.getTimeRemaining(roundId);
+    expect(t).toBeGreaterThanOrEqual(0);
+  });
 });

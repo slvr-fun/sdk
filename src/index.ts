@@ -274,9 +274,13 @@ export class SlvrSDK {
    * @returns Time remaining in seconds, or 0 if round has ended
    */
   async getTimeRemaining(roundId: bigint): Promise<number> {
-    const roundEnd = await this.lottery.roundEnd(roundId);
-    const now = BigInt(Math.floor(Date.now() / 1000));
-    const remaining = roundEnd - now;
+    // Use the chain's clock, not the local one — device time can drift (and on a
+    // local anvil chain diverges hard), which would make this wildly wrong.
+    const [roundEnd, block] = await Promise.all([
+      this.lottery.roundEnd(roundId),
+      this.config.publicClient.getBlock(),
+    ]);
+    const remaining = roundEnd - block.timestamp;
     return remaining > 0n ? Number(remaining) : 0;
   }
 
@@ -309,15 +313,14 @@ export class SlvrSDK {
    * @returns Array of round IDs that can be claimed
    */
   async getClaimableRounds(user: Address, startRoundId: bigint, endRoundId: bigint): Promise<bigint[]> {
-    const claimable: bigint[] = [];
-
+    const rounds: bigint[] = [];
     for (let roundId = startRoundId; roundId <= endRoundId; roundId++) {
-      if (await this.canClaim(roundId, user)) {
-        claimable.push(roundId);
-      }
+      rounds.push(roundId);
     }
-
-    return claimable;
+    // Check all rounds concurrently — with a multicall-batching client the
+    // underlying reads collapse into a few RPC calls instead of one per round.
+    const flags = await Promise.all(rounds.map((roundId) => this.canClaim(roundId, user)));
+    return rounds.filter((_, i) => flags[i]);
   }
 
   /**
