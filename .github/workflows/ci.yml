@@ -1,0 +1,25 @@
+# CI for the public @slvr-labs/sdk mirror (github.com/slvr-fun/sdk).
+#
+# This file lives at sdk/ts/.github/workflows/ci.yml in the monorepo, where it is
+# inert (GitHub only runs workflows from the repo root). When the SDK is mirrored
+# out (scripts/publish-mirror.sh flattens sdk/ts to the repo root), it lands at
+# .github/workflows/ci.yml in the public repo and runs there.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test # tsc --noEmit

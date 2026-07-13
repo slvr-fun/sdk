@@ -1,0 +1,68 @@
+{
+  "name": "@slvr-labs/sdk",
+  "version": "1.0.0",
+  "description": "TypeScript SDK for interacting with the Slvr protocol on Robinhood Chain",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "module": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "examples",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "tsc --noEmit",
+    "mirror": "bash scripts/publish-mirror.sh"
+  },
+  "keywords": [
+    "slvr",
+    "blockchain",
+    "ethereum",
+    "robinhood",
+    "lottery",
+    "staking",
+    "defi",
+    "sdk",
+    "typescript"
+  ],
+  "author": "slvr-dev",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/slvr-fun/sdk.git"
+  },
+  "bugs": {
+    "url": "https://github.com/slvr-fun/sdk/issues"
+  },
+  "homepage": "https://github.com/slvr-fun/sdk#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "viem": "^2.40.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "typescript": "^5.0.0"
+  },
+  "peerDependencies": {
+    "viem": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "viem": {
+      "optional": false
+    }
+  }
+}
