@@ -30,8 +30,17 @@ npm install @slvr-labs/sdk viem
 ```
 
 The SDK **ships the chain and addresses** — never hand-roll `defineChain` or paste
-contract addresses. Build a read-only SDK with just a public client; add a wallet
-client only for transactions.
+contract addresses. Fastest path is `SlvrSDK.connect` (builds resilient clients
+with Multicall3 batching + retries):
+
+```typescript
+import { SlvrSDK } from '@slvr-labs/sdk';
+const sdk = SlvrSDK.connect();                                // read-only
+const bot = SlvrSDK.connect({ privateKey: process.env.PK });  // wallet-backed
+```
+
+Or construct it yourself — read-only needs just a public client; add a wallet
+client for transactions:
 
 ```typescript
 import { createPublicClient, createWalletClient, http } from 'viem';

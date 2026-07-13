@@ -10,6 +10,8 @@ import { SlvrJackpot } from './contracts/jackpot';
 import { SlvrPrice } from './price';
 import { ChainlinkPriceFeed } from './oracle';
 import { computeGridMiningEv, GridMiningEv } from './ev';
+import { createSlvrClients, ConnectOptions } from './connect';
+import { robinhood } from './deployments';
 import { ValidationError } from './errors';
 
 /**
@@ -138,6 +140,24 @@ export class SlvrSDK {
   }
 
   /**
+   * One-line setup: build clients (with Multicall3 batching + resilient transport
+   * defaults) and an SDK for a deployment. Pass a `privateKey`/`account` to enable
+   * writes; omit it for a read-only SDK.
+   *
+   * @example
+   * ```typescript
+   * import { SlvrSDK } from '@slvr-labs/sdk';
+   * const sdk = SlvrSDK.connect();                                   // read-only, Robinhood Chain
+   * const bot = SlvrSDK.connect({ privateKey: process.env.PK });     // wallet-backed
+   * ```
+   */
+  static connect(opts: ConnectOptions = {}): SlvrSDK {
+    const deployment = opts.deployment ?? robinhood;
+    const { publicClient, walletClient } = createSlvrClients(opts);
+    return new SlvrSDK({ publicClient, walletClient, addresses: deployment.addresses });
+  }
+
+  /**
    * Get the public client
    */
   getPublicClient(): PublicClient {
@@ -213,23 +233,27 @@ export class SlvrSDK {
   }
 
   /**
-   * Helper: Format bigint to human-readable string
+   * Helper: Format bigint to human-readable string.
+   *
+   * `precision` caps the number of decimal places shown; trailing zeros are
+   * stripped (like viem's `formatEther`), so `formatToken(1.5e18)` is `"1.5"`,
+   * not `"1.5000"`.
    * @param value Value in wei
    * @param decimals Number of decimals (default 18)
-   * @param precision Number of decimal places to show (default 4)
+   * @param precision Max decimal places to show (default 4)
    */
   static formatToken(value: bigint, decimals: number = 18, precision: number = 4): string {
     const divisor = BigInt(10 ** decimals);
     const whole = value / divisor;
     const remainder = value % divisor;
     const fractional = (remainder * BigInt(10 ** precision)) / divisor;
-    
+
     if (fractional === 0n) {
       return whole.toString();
     }
-    
-    const fractionalStr = fractional.toString().padStart(precision, '0');
-    return `${whole}.${fractionalStr}`;
+
+    const fractionalStr = fractional.toString().padStart(precision, '0').replace(/0+$/, '');
+    return fractionalStr ? `${whole}.${fractionalStr}` : whole.toString();
   }
 
   /**
@@ -472,6 +496,10 @@ export * from './ev';
 export { SlvrPrice } from './price';
 export type { SlvrReserves } from './price';
 export { ChainlinkPriceFeed } from './oracle';
+
+// Export client factory
+export { createSlvrClients, chainFromDeployment } from './connect';
+export type { ConnectOptions, SlvrClients } from './connect';
 
 // Export contract classes
 export { SlvrGridLottery } from './contracts/lottery';

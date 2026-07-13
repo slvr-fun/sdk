@@ -22,4 +22,5 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npm test # tsc --noEmit
+      - run: npm run typecheck
+      - run: npm test # vitest (unit tests; integration tests skip without SLVR_TEST_RPC)

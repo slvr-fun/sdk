@@ -2,6 +2,7 @@ import { Address, parseAbi, PublicClient, WalletClient } from 'viem';
 import { RoundInfo, MinerState, BetParams, ClaimParams, ClaimParamsAdvanced } from '../types';
 import { WalletClientRequiredError, ContractCallError } from '../errors';
 import { validateAddress, validateAmount, validateSquares, validateArrayLengths, waitForTransactionReceipt } from '../utils';
+import { SlvrGridLotteryEvents, BetPlacedEvent, RoundResolvedEvent } from '../events';
 
 /**
  * SlvrGridLottery contract interface
@@ -760,6 +761,80 @@ export class SlvrGridLottery {
     return squares
       .map((square, i) => ({ square, amount: bets[i]! }))
       .filter((bet): bet is { square: number; amount: bigint } => bet.amount > 0n);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Reactive helpers
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Wait until a round is resolved, resolving with its final {@link RoundInfo}.
+   * Polls `getRound` on an interval — handy for "bet, then claim once it settles".
+   *
+   * @param opts.pollIntervalMs how often to check (default 4000)
+   * @param opts.timeoutMs give up after this long (default: wait indefinitely)
+   * @throws {Error} if `timeoutMs` elapses before resolution
+   */
+  async waitForResolution(
+    roundId: bigint,
+    opts: { pollIntervalMs?: number; timeoutMs?: number } = {}
+  ): Promise<RoundInfo> {
+    const interval = opts.pollIntervalMs ?? 4000;
+    const deadline = opts.timeoutMs !== undefined ? Date.now() + opts.timeoutMs : Infinity;
+    for (;;) {
+      const round = await this.getRound(roundId);
+      if (round.resolved) return round;
+      if (Date.now() >= deadline) throw new Error(`round ${roundId} not resolved within ${opts.timeoutMs}ms`);
+      await new Promise((r) => setTimeout(r, interval));
+    }
+  }
+
+  /**
+   * Subscribe to `RoundResolved` events. Returns an unsubscribe function.
+   *
+   * @example
+   * ```typescript
+   * const stop = sdk.lottery.watchRoundResolved((e) => {
+   *   console.log(`round ${e.roundId} won by square ${e.winningSquare}`);
+   * });
+   * // later: stop();
+   * ```
+   */
+  watchRoundResolved(
+    onResolved: (event: RoundResolvedEvent['args']) => void,
+    opts: { onError?: (error: Error) => void } = {}
+  ): () => void {
+    return this.publicClient.watchContractEvent({
+      address: this.address,
+      abi: SlvrGridLotteryEvents,
+      eventName: 'RoundResolved',
+      onLogs: (logs) => {
+        for (const log of logs) onResolved((log as unknown as { args: RoundResolvedEvent['args'] }).args);
+      },
+      onError: opts.onError,
+      poll: true,
+    });
+  }
+
+  /**
+   * Subscribe to `BetPlaced` events (optionally for one round). Returns an
+   * unsubscribe function. Useful for reacting to pot changes in real time.
+   */
+  watchBets(
+    onBet: (event: BetPlacedEvent['args']) => void,
+    opts: { roundId?: bigint; onError?: (error: Error) => void } = {}
+  ): () => void {
+    return this.publicClient.watchContractEvent({
+      address: this.address,
+      abi: SlvrGridLotteryEvents,
+      eventName: 'BetPlaced',
+      args: opts.roundId !== undefined ? ({ roundId: opts.roundId } as never) : undefined,
+      onLogs: (logs) => {
+        for (const log of logs) onBet((log as unknown as { args: BetPlacedEvent['args'] }).args);
+      },
+      onError: opts.onError,
+      poll: true,
+    });
   }
 }
 

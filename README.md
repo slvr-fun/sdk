@@ -10,6 +10,21 @@ npm install @slvr-labs/sdk viem
 
 ## Quick Start
 
+The fastest way — `SlvrSDK.connect` builds resilient clients (Multicall3
+batching, timeouts, retries) and wires the SDK for you:
+
+```typescript
+import { SlvrSDK } from '@slvr-labs/sdk';
+
+const sdk = SlvrSDK.connect();                                  // read-only, Robinhood Chain
+const bot = SlvrSDK.connect({ privateKey: process.env.PK });    // wallet-backed (for bets/claims)
+
+const roundId = await sdk.lottery.currentRoundId();
+```
+
+Need the clients yourself? `createSlvrClients(opts)` returns `{ publicClient,
+walletClient?, chain }` with the same defaults. Or wire everything manually:
+
 ```typescript
 import { createPublicClient, createWalletClient, http } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
@@ -410,13 +425,32 @@ for a bot that only bets when a round is +EV. Exported constants `GRID_SIZE` (25
 `PROTOCOL_FEE_BPS`, `REFINING_FEE_BPS`, and `JACKPOT_ODDS` (625) document the on-chain
 defaults.
 
+### Reactive Helpers
+
+Instead of hand-rolling polling loops, react to on-chain events or await
+resolution:
+
+```typescript
+// Await a round's resolution (polls getRound under the hood) — e.g. bet, then claim.
+const resolved = await sdk.lottery.waitForResolution(roundId, { timeoutMs: 300_000 });
+if (await sdk.canClaim(roundId, address)) await sdk.lottery.claim({ roundId });
+
+// Subscribe to events; each returns an unsubscribe function.
+const stopResolved = sdk.lottery.watchRoundResolved((e) => {
+  console.log(`round ${e.roundId} won by square ${e.winningSquare}`);
+});
+const stopBets = sdk.lottery.watchBets((e) => console.log(`bet of ${e.total} on round ${e.roundId}`));
+// later: stopResolved(); stopBets();
+```
+
 ### Helper Functions
 
 #### Format Token Amounts
 
 ```typescript
 const formatted = SlvrSDK.formatToken(1500000000000000000n); // "1.5"
-const formattedPrecise = SlvrSDK.formatToken(1500000000000000000n, 18, 6); // "1.500000"
+// precision caps decimals; trailing zeros are stripped
+const precise = SlvrSDK.formatToken(1234567890000000000n, 18, 6); // "1.234567"
 ```
 
 #### Parse Token Amounts

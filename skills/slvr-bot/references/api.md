@@ -20,6 +20,11 @@ Squares are `0`–`24`. Write methods need a wallet client and return a tx hash
 
 ## Construction
 ```typescript
+// Fastest — builds resilient clients (multicall batching, timeouts, retries):
+SlvrSDK.connect(opts?: ConnectOptions): SlvrSDK   // opts: { deployment?, rpcUrl?, privateKey?, account?, batchMulticall?, pollingInterval? }
+createSlvrClients(opts?): { chain, publicClient, walletClient? }   // if you want the clients yourself
+
+// Or construct directly:
 new SlvrSDK({ publicClient, walletClient?, addresses })
 ```
 - `addresses` shape: `{ lottery, staking, token, autoCommit?, voteEscrow?, slvrEthPair?, chainlinkEthUsd?, multicall3?, hub?, registry?, jackpot? }`
@@ -64,6 +69,11 @@ Writes:
 - `donateSlvrToJackpot(amount)`, `addEthToJackpot(value)`.
 - `withdrawUnrefinedSlvr()` — cash out mined SLVR (net of refining fee).
 - `checkpoint(account)` — force-settle miner accrual (rarely needed; claim/withdraw do it).
+
+Reactive (prefer over polling):
+- `waitForResolution(roundId, { pollIntervalMs?, timeoutMs? }): Promise<RoundInfo>` — resolves when the round settles.
+- `watchRoundResolved(cb, { onError? }): () => void` — subscribe to RoundResolved; returns unsubscribe.
+- `watchBets(cb, { roundId?, onError? }): () => void` — subscribe to BetPlaced; returns unsubscribe.
 
 ## sdk.token
 Reads: `totalSupply()`, `balanceOf(account)`, `allowance(owner, spender)`, `maxSupply()`, `name()`, `symbol()`, `decimals()`.
