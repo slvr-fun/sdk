@@ -696,6 +696,18 @@ robinhoodChain; // a viem `Chain` for createPublicClient/createWalletClient
 Types: `SlvrDeployment` describes the shape. To target a local or custom
 deployment, construct the SDK with your own `addresses` object instead.
 
+## Build with an AI agent (Claude Code / Codex)
+
+The package ships an **agent skill** at
+[`skills/slvr-bot/`](./skills/slvr-bot/SKILL.md) so a coding agent can build SLVR
+bots for you correctly — it knows the API, addresses, EV math, and gotchas.
+
+- **Claude Code:** copy `skills/slvr-bot/` into your project's `.claude/skills/`
+  (or reference `node_modules/@slvr-labs/sdk/skills/slvr-bot/`), then ask e.g.
+  *"build me a bot that grid-mines SLVR only on +EV rounds."*
+- **Codex / other agents:** the skill is plain Markdown — point your `AGENTS.md`
+  at `node_modules/@slvr-labs/sdk/skills/slvr-bot/SKILL.md`, or paste it into context.
+
 ## Examples
 
 The package ships runnable examples in the [`examples/`](./examples) directory
