@@ -39,6 +39,8 @@ export interface SlvrDeployment {
      * Absent on deployments (like Robinhood Chain) that have no on-chain feed.
      */
     chainlinkEthUsd?: Address;
+    /** Multicall3 — lets the SDK batch multi-square reads into a single RPC call (optional). */
+    multicall3?: Address;
     /** SlvrHub emission/sink router (optional; only on hub deployments) */
     hub?: Address;
     /** SlvrGameRegistry (optional; only on hub deployments) */
@@ -75,6 +77,8 @@ export const robinhood: SlvrDeployment = {
     // one is for protocols integrating Chainlink SVR (OEV recapture); for plain
     // price reads the standard proxy below is the right choice.
     chainlinkEthUsd: '0x78F3556b67E17Df817D51Ef5a990cDaF09E8d3A9',
+    // Multicall3 at its canonical cross-chain address (verified deployed on Robinhood Chain).
+    multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   },
 };
 
@@ -110,5 +114,11 @@ export const robinhoodChain = defineChain({
   rpcUrls: { default: { http: [robinhood.rpcUrl] } },
   blockExplorers: {
     default: { name: 'Blockscout', url: 'https://robinhoodchain.blockscout.com' },
+  },
+  // Registering Multicall3 lets viem batch reads: the SDK's multi-square reads
+  // become one RPC call, and clients created with `batch: { multicall: true }`
+  // auto-batch every concurrent read.
+  contracts: {
+    multicall3: { address: robinhood.addresses.multicall3! },
   },
 });

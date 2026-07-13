@@ -22,7 +22,8 @@ Squares are `0`–`24`. Write methods need a wallet client and return a tx hash
 ```typescript
 new SlvrSDK({ publicClient, walletClient?, addresses })
 ```
-- `addresses` shape: `{ lottery, staking, token, autoCommit?, voteEscrow?, slvrEthPair?, chainlinkEthUsd?, hub?, registry?, jackpot? }`
+- `addresses` shape: `{ lottery, staking, token, autoCommit?, voteEscrow?, slvrEthPair?, chainlinkEthUsd?, multicall3?, hub?, registry?, jackpot? }`
+- **Batching:** `robinhoodChain` registers Multicall3, so `getRoundSquares`/`getUserBets` are one RPC call each. For polling bots, create the client with `batch: { multicall: true }` to auto-batch all concurrent reads.
 - Use `deployments.robinhood.addresses` for mainnet.
 - `sdk.getPublicClient()`, `sdk.getWalletClient()`, `sdk.setWalletClient(wc)`.
 - Static utils: `SlvrSDK.formatToken(value, decimals?, precision?)`, `SlvrSDK.parseToken(str, decimals?)`, `SlvrSDK.calculateBetAmounts(total, percentages[])`.

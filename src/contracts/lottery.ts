@@ -713,17 +713,27 @@ export class SlvrGridLottery {
   async getRoundSquares(roundId: bigint): Promise<Array<{ square: number; total: bigint; bettors: bigint }>> {
     const gridSize = await this.grid();
     const squares = Array.from({ length: gridSize }, (_, i) => i);
-    
-    const [totals, bettors] = await Promise.all([
-      Promise.all(squares.map(sq => this.getTotalOnSquare(roundId, sq))),
-      Promise.all(squares.map(sq => this.getBettorsOnSquare(roundId, sq))),
-    ]);
 
-    return squares.map((square, i) => ({
-      square,
-      total: totals[i]!,
-      bettors: bettors[i]!,
-    }));
+    // Fast path: batch all 2×gridSize reads into a single multicall. Requires the
+    // client's chain to know Multicall3 (robinhoodChain registers it). Falls back
+    // to parallel individual reads on any chain/client without it.
+    try {
+      const contracts = squares.flatMap((sq) => [
+        { address: this.address, abi: SlvrGridLottery.ABI, functionName: 'getTotalOnSquare', args: [roundId, sq] },
+        { address: this.address, abi: SlvrGridLottery.ABI, functionName: 'getBettorsOnSquare', args: [roundId, sq] },
+      ]);
+      const res = (await this.publicClient.multicall({
+        contracts: contracts as never,
+        allowFailure: false,
+      })) as bigint[];
+      return squares.map((square, i) => ({ square, total: res[i * 2]!, bettors: res[i * 2 + 1]! }));
+    } catch {
+      const [totals, bettors] = await Promise.all([
+        Promise.all(squares.map((sq) => this.getTotalOnSquare(roundId, sq))),
+        Promise.all(squares.map((sq) => this.getBettorsOnSquare(roundId, sq))),
+      ]);
+      return squares.map((square, i) => ({ square, total: totals[i]!, bettors: bettors[i]! }));
+    }
   }
 
   /**
@@ -732,10 +742,20 @@ export class SlvrGridLottery {
   async getUserBets(roundId: bigint, user: Address): Promise<Array<{ square: number; amount: bigint }>> {
     const gridSize = await this.grid();
     const squares = Array.from({ length: gridSize }, (_, i) => i);
-    
-    const bets = await Promise.all(
-      squares.map(sq => this.getUserBet(roundId, sq, user))
-    );
+
+    // Batch via multicall when available; fall back to parallel reads otherwise.
+    let bets: bigint[];
+    try {
+      const contracts = squares.map((sq) => ({
+        address: this.address,
+        abi: SlvrGridLottery.ABI,
+        functionName: 'getUserBet',
+        args: [roundId, sq, user],
+      }));
+      bets = (await this.publicClient.multicall({ contracts: contracts as never, allowFailure: false })) as bigint[];
+    } catch {
+      bets = await Promise.all(squares.map((sq) => this.getUserBet(roundId, sq, user)));
+    }
 
     return squares
       .map((square, i) => ({ square, amount: bets[i]! }))

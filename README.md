@@ -688,13 +688,31 @@ deployments.robinhood.chainId;        // 4663
 deployments.robinhood.rpcUrl;         // https://rpc.mainnet.chain.robinhood.com
 deployments.robinhood.blockExplorer;  // https://robinhoodchain.blockscout.com/
 deployments.robinhood.subgraphUrl;    // hosted subgraph GraphQL endpoint
-deployments.robinhood.addresses;      // { lottery, staking, token, autoCommit, voteEscrow, slvrEthPair }
+deployments.robinhood.addresses;      // { lottery, staking, token, autoCommit, voteEscrow, slvrEthPair, chainlinkEthUsd, multicall3 }
 
 robinhoodChain; // a viem `Chain` for createPublicClient/createWalletClient
 ```
 
 Types: `SlvrDeployment` describes the shape. To target a local or custom
 deployment, construct the SDK with your own `addresses` object instead.
+
+### Batched reads (multicall)
+
+`robinhoodChain` registers **Multicall3**, so the SDK's multi-square reads
+(`getRoundSquares`, `getUserBets`) collapse from ~50 RPC calls into **one**. For
+even more batching, create your client with `batch: { multicall: true }` — viem
+then auto-batches every concurrent read (great for polling bots):
+
+```typescript
+const publicClient = createPublicClient({
+  chain: robinhoodChain,
+  transport: http(),
+  batch: { multicall: true },
+});
+```
+
+On a custom chain without Multicall3 configured, these methods transparently fall
+back to individual reads.
 
 ## Build with an AI agent (Claude Code / Codex)
 
