@@ -4,6 +4,12 @@ All notable changes to `@slvr-labs/sdk` are documented here. This project follow
 [Semantic Versioning](https://semver.org/); while `0.x`, the public API may still
 change between minor versions.
 
+## 0.1.2
+
+### Fixed
+- Expose `./package.json` in the `exports` map so tools that read it (some
+  bundlers/plugins) resolve it instead of erroring on the subpath.
+
 ## 0.1.1
 
 Initial public release.
