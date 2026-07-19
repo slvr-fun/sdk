@@ -62,8 +62,15 @@ export const robinhood: SlvrDeployment = {
   name: 'Robinhood Chain',
   rpcUrl: 'https://rpc.mainnet.chain.robinhood.com',
   blockExplorer: 'https://robinhoodchain.blockscout.com/',
-  // Keep in step with `subgraphUrl` in interface/config/constants.ts — this drifted to a dead
-  // 1.2.0 (stopped indexing ~4 days back) because the interface moved to 1.3.0 and the SDK didn't.
+  // DON'T EDIT THIS BY HAND. This package is generated from the slvr-mono monorepo, where the
+  // source of truth is subgraph/config/endpoint.json; `scripts/check-subgraph-endpoint.sh --fix`
+  // rewrites this line and the interface's matching copy together, and CI fails if they disagree.
+  // It stays a literal because this package is published and mirrored standalone, so it can't
+  // import anything from outside its own tree.
+  //
+  // Worth keeping enforced: this once drifted to a dead 1.2.0 — the interface moved to 1.3.0 and
+  // the SDK didn't — and that subgraph later stopped indexing, leaving consumers of this default
+  // reading data ~4 days stale.
   subgraphUrl:
     'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.4.0/gn',
   addresses: {
