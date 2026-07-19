@@ -62,8 +62,10 @@ export const robinhood: SlvrDeployment = {
   name: 'Robinhood Chain',
   rpcUrl: 'https://rpc.mainnet.chain.robinhood.com',
   blockExplorer: 'https://robinhoodchain.blockscout.com/',
+  // Keep in step with `subgraphUrl` in interface/config/constants.ts — this drifted to a dead
+  // 1.2.0 (stopped indexing ~4 days back) because the interface moved to 1.3.0 and the SDK didn't.
   subgraphUrl:
-    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.2.0/gn',
+    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.4.0/gn',
   addresses: {
     lottery: '0x284Eb4016305Fa7FbC162Fb68F27227271001c7f',
     staking: '0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200',
