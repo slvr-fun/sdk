@@ -518,6 +518,7 @@ export type { SlvrReserves } from './price';
 export { ChainlinkPriceFeed } from './oracle';
 
 // Export client factory
+export { lotteryForRound, isMigrationLive } from './deployments';
 export { createSlvrClients, chainFromDeployment } from './connect';
 export type { ConnectOptions, SlvrClients } from './connect';
 
@@ -525,7 +526,8 @@ export type { ConnectOptions, SlvrClients } from './connect';
 export { SlvrGridLottery } from './contracts/lottery';
 export { SlvrStaking } from './contracts/staking';
 export { SlvrToken } from './contracts/token';
-export { SlvrAutoCommit } from './contracts/autoCommit';
+export { SlvrAutoCommit, LOCK_MODE } from './contracts/autoCommit';
+export type { LockMode } from './contracts/autoCommit';
 export { SlvrHub } from './contracts/hub';
 export { SlvrGameRegistry } from './contracts/registry';
 export { SlvrJackpot } from './contracts/jackpot';

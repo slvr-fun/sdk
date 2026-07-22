@@ -4,7 +4,24 @@ import { WalletClientRequiredError, ContractCallError } from '../errors';
 import { validateAddress, validateAmount, validateSquares, validateBpsSum, validateArrayLengths } from '../utils';
 
 /**
- * SlvrAutoCommitV2 contract interface
+ * What an auto-claim does with a plan's SLVR winnings (V3 only).
+ *
+ * `none` is V2's behavior and the default: claim the ETH into the plan balance and leave the
+ * SLVR unrefined in miner state, where it keeps earning refining dividends.
+ *
+ * `permanent` burns the refined SLVR into the user's permanent veNFT lock on every auto-claim,
+ * with the 10% refining fee bypassed. It is irreversible — a permanent lock never unlocks —
+ * which is exactly what buys the fee bypass. Requires autoClaim.
+ *
+ * There is deliberately no auto-lock into a time-limited (TMAX) veNFT: it would charge the 10%
+ * fee every claim for nothing, since the fee is proportional and the SLVR would give up the
+ * dividends it earns while unrefined.
+ */
+export const LOCK_MODE = { none: 0, permanent: 1 } as const;
+export type LockMode = (typeof LOCK_MODE)[keyof typeof LOCK_MODE];
+
+/**
+ * SlvrAutoCommitV2/V3 contract interface
  *
  * V2 economics: executors calling executeFor/claimFor are reimbursed their
  * metered gas (plus a premium, capped at maxFeePerExecution — both owner-tunable
@@ -40,6 +57,18 @@ export class SlvrAutoCommit {
     'function claimFor(address user, uint256[] claimRounds) returns (uint256 claimed)',
   ]);
 
+  /**
+   * V3-only fragments. `configurePlan`/`configurePlanAndDeposit` take a trailing lockMode, and
+   * planInfo APPENDS one — so these are separate selectors (writes) and a separate return shape
+   * (planInfo), which is why they can't just be merged into the ABI above: viem resolves
+   * overloads by argument count, and planInfo's inputs are identical in both generations.
+   */
+  private static readonly ABI_V3 = parseAbi([
+    'function planInfo(address user) view returns (bool enabled, uint256 nextRoundId, uint32 playsRemaining, uint256 amountPerPlay, uint256 balance, bool autoClaim, uint8[] squares, uint16[] bpsAlloc, uint256 planStartRoundId, uint8 lockMode)',
+    'function configurePlan(uint32 plays, uint256 amountPerPlay, uint8[] squares, uint16[] bpsAlloc, bool autoClaim, uint8 lockMode)',
+    'function configurePlanAndDeposit(uint32 plays, uint256 amountPerPlay, uint8[] squares, uint16[] bpsAlloc, bool autoClaim, uint8 lockMode) payable',
+  ]);
+
   constructor(publicClient: PublicClient, walletClient: WalletClient | undefined, address: Address) {
     this.publicClient = publicClient;
     this.walletClient = walletClient;
@@ -52,6 +81,35 @@ export class SlvrAutoCommit {
    */
   setWalletClient(walletClient: WalletClient | undefined): void {
     this.walletClient = walletClient;
+  }
+
+  /** The contract enforces this too; failing here gives a usable message instead of a raw revert. */
+  private validateLockMode(lockMode: LockMode | undefined, autoClaim: boolean): void {
+    if (lockMode === undefined || lockMode === LOCK_MODE.none) return;
+    if (!autoClaim) {
+      throw new ContractCallError('lockMode requires autoClaim — the lock happens as part of the auto-claim.');
+    }
+  }
+
+  /**
+   * Read a plan's lock mode (V3 only).
+   *
+   * Returns `null` against a V2 contract, whose planInfo has no lockMode field — so this
+   * doubles as a "is this the V3 generation?" probe without needing a separate call.
+   */
+  async planLockMode(user: Address): Promise<LockMode | null> {
+    validateAddress(user, 'user address');
+    try {
+      const raw = (await this.publicClient.readContract({
+        address: this.address,
+        abi: SlvrAutoCommit.ABI_V3,
+        functionName: 'planInfo',
+        args: [user],
+      })) as readonly unknown[];
+      return Number(raw[9]) as LockMode;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -245,6 +303,9 @@ export class SlvrAutoCommit {
    * @param squares Square indices to bet on
    * @param bpsAlloc Basis points allocation for each square (must sum to 10000)
    * @param autoClaim Whether the keeper should claim winnings back into the plan balance
+   * @param lockMode V3 only — what to do with SLVR winnings on auto-claim. Omit (or pass
+   *                 LOCK_MODE.none) for V2 behavior; passing it targets the V3 selector, so
+   *                 only pass it against a V3 contract.
    * @returns Transaction hash
    * @throws WalletClientRequiredError if wallet client is not available
    * @throws ValidationError if inputs are invalid
@@ -255,20 +316,32 @@ export class SlvrAutoCommit {
     amountPerPlay: bigint,
     squares: number[],
     bpsAlloc: number[],
-    autoClaim: boolean
+    autoClaim: boolean,
+    lockMode?: LockMode
   ): Promise<`0x${string}`> {
     if (!this.walletClient) {
       throw new WalletClientRequiredError('configuring plan');
     }
 
     this.validatePlanConfig(plays, amountPerPlay, squares, bpsAlloc);
+    this.validateLockMode(lockMode, autoClaim);
 
     try {
+      if (lockMode === undefined) {
+        return await this.walletClient.writeContract({
+          address: this.address,
+          abi: SlvrAutoCommit.ABI,
+          functionName: 'configurePlan',
+          args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim],
+          account: this.walletClient.account!,
+          chain: null,
+        });
+      }
       return await this.walletClient.writeContract({
         address: this.address,
-        abi: SlvrAutoCommit.ABI,
+        abi: SlvrAutoCommit.ABI_V3,
         functionName: 'configurePlan',
-        args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim],
+        args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim, lockMode],
         account: this.walletClient.account!,
         chain: null,
       });
@@ -288,6 +361,7 @@ export class SlvrAutoCommit {
    * @param bpsAlloc Basis points allocation for each square (must sum to 10000)
    * @param autoClaim Whether the keeper should claim winnings back into the plan balance
    * @param value Amount to deposit
+   * @param lockMode V3 only — see configurePlan
    * @returns Transaction hash
    * @throws WalletClientRequiredError if wallet client is not available
    * @throws ValidationError if inputs are invalid
@@ -299,7 +373,8 @@ export class SlvrAutoCommit {
     squares: number[],
     bpsAlloc: number[],
     autoClaim: boolean,
-    value: bigint
+    value: bigint,
+    lockMode?: LockMode
   ): Promise<`0x${string}`> {
     if (!this.walletClient) {
       throw new WalletClientRequiredError('configuring plan');
@@ -307,13 +382,25 @@ export class SlvrAutoCommit {
 
     this.validatePlanConfig(plays, amountPerPlay, squares, bpsAlloc);
     validateAmount(value, 'deposit amount');
+    this.validateLockMode(lockMode, autoClaim);
 
     try {
+      if (lockMode === undefined) {
+        return await this.walletClient.writeContract({
+          address: this.address,
+          abi: SlvrAutoCommit.ABI,
+          functionName: 'configurePlanAndDeposit',
+          args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim],
+          value,
+          account: this.walletClient.account!,
+          chain: null,
+        });
+      }
       return await this.walletClient.writeContract({
         address: this.address,
-        abi: SlvrAutoCommit.ABI,
+        abi: SlvrAutoCommit.ABI_V3,
         functionName: 'configurePlanAndDeposit',
-        args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim],
+        args: [plays, amountPerPlay, squares, bpsAlloc, autoClaim, lockMode],
         value,
         account: this.walletClient.account!,
         chain: null,
