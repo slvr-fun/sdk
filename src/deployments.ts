@@ -104,7 +104,7 @@ export const robinhood: SlvrDeployment = {
   // the SDK didn't — and that subgraph later stopped indexing, leaving consumers of this default
   // reading data ~4 days stale.
   subgraphUrl:
-    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.6.0/gn',
+    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.7.0/gn',
   addresses: {
     // Grid-game migration at round 12500 (2026-07-22). Only the LOTTERY generation changed:
     // token, staking, vote escrow, the pair and the price feeds are the same contracts they
