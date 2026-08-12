@@ -52,7 +52,9 @@ export class SlvrGridLottery {
     'function claimAdvanced((address user, uint256 roundId, address recipientNative, address recipientSlvr, bool bypassFee, bool ethOnly) params)',
     'function approveDelegate(address delegate)',
     'function revokeDelegate(address delegate)',
-    'function donateSlvrToJackpot(uint256 amount)',
+    // donateSlvrToJackpot() was removed from the lottery: it was a transferFrom-and-forward
+    // wrapper around SlvrJackpot.addSlvr(), which already pulls from msg.sender. Donate by
+    // approving and calling the jackpot contract directly (lottery.jackpot()).
     'function addEthToJackpot() payable',
     'function checkpoint(address account)',
     'function withdrawUnrefinedSlvr() returns (uint256 totalPayout, uint256 refiningFee)',
@@ -729,25 +731,6 @@ export class SlvrGridLottery {
       functionName: 'getDelegate',
       args: [user, delegate],
     }) as boolean;
-  }
-
-  /**
-   * Donate SLVR tokens directly to the jackpot pool.
-   * Note: caller must have approved the lottery to spend `amount` of SLVR beforehand.
-   */
-  async donateSlvrToJackpot(amount: bigint): Promise<`0x${string}`> {
-    if (!this.walletClient) {
-      throw new WalletClientRequiredError('donating to jackpot');
-    }
-    validateAmount(amount, 'donation amount');
-    return await this.walletClient.writeContract({
-      address: this.address,
-      abi: SlvrGridLottery.ABI,
-      functionName: 'donateSlvrToJackpot',
-      args: [amount],
-      account: this.walletClient.account!,
-      chain: null,
-    });
   }
 
   /**

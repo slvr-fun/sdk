@@ -9,6 +9,18 @@ import { Address, defineChain } from 'viem';
  * omitted here for deployments that don't, and the corresponding `sdk.hub` /
  * `sdk.registry` / `sdk.jackpot` bindings will be `undefined`.
  */
+/** One generation of the grid lottery, and the first round it owns. */
+export interface SlvrGeneration {
+  /** Short human label, e.g. "Payload rollover". */
+  label: string;
+  /** First round this generation owns. Round numbering is continuous across generations. */
+  startRound: number;
+  lottery: Address;
+  autoCommit?: Address;
+  claimLocker?: Address;
+  multiClaim?: Address;
+}
+
 export interface SlvrDeployment {
   /** EVM chain id */
   chainId: number;
@@ -76,6 +88,16 @@ export interface SlvrDeployment {
    * otherwise => `lottery`. Absent when a deployment has never been migrated.
    */
   cutoverRound?: number;
+  /**
+   * The full generation history, oldest first — the only thing that survives a SECOND cutover.
+   *
+   * `cutoverRound` + `lotteryLegacy` describe ONE migration, which is exactly enough to be wrong
+   * after the next one: with three generations, `lotteryLegacy` is the middle contract, so a round
+   * from the first generation resolves to a contract that never held it, and the claim is simply
+   * not found. Prefer `lotteryForRound`, which walks this list. The two-generation fields are kept
+   * so existing integrations keep working.
+   */
+  generations?: readonly SlvrGeneration[];
 }
 
 /**
@@ -109,14 +131,14 @@ export const robinhood: SlvrDeployment = {
     // Grid-game migration at round 12500 (2026-07-22). Only the LOTTERY generation changed:
     // token, staking, vote escrow, the pair and the price feeds are the same contracts they
     // have always been, and your SLVR balance, miner state and veNFT locks are untouched by it.
-    lottery: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
-    lotteryLegacy: '0x284Eb4016305Fa7FbC162Fb68F27227271001c7f',
+    lottery: '0xA87F54aD6eC96B3E377B30811869f1B99A0e97b3',
+    lotteryLegacy: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
     staking: '0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200',
     token: '0x791229E3EbD6CFdC3D8157f48722684173C29aD9',
-    autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
-    autoCommitLegacy: '0x314c8D5755468224AC60c36FB5494F0D7D5Abb3B',
-    claimLockerV2: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
-    multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
+    autoCommit: '0xCe0569844f9FEDF25c0478EA97DB58023776bAad',
+    autoCommitLegacy: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
+    claimLockerV2: '0x2A76CF59617631195b7691d9381bF9Eb3C024cd0',
+    multiClaim: '0xc1C3318d469f58D58fef14FEea852fE8C35D01cA',
     voteEscrow: '0xd9b8FBD61033145c5496132153CE675756313B71',
     slvrEthPair: '0xe365b92239097Ed3322131411DbE15a5c4068eff',
     // Chainlink ETH/USD feed (standard AggregatorV3 proxy; "ETH / USD", 8 decimals).
@@ -128,7 +150,35 @@ export const robinhood: SlvrDeployment = {
     // Multicall3 at its canonical cross-chain address (verified deployed on Robinhood Chain).
     multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   },
-  cutoverRound: 12500,
+  cutoverRound: 32600,
+  // Oldest first. Append only: an old lottery is never paused, so its rounds stay claimable
+  // forever and deleting an entry is the SDK losing its only route to money still owed.
+  generations: [
+    {
+      label: 'Original',
+      startRound: 0,
+      lottery: '0x284Eb4016305Fa7FbC162Fb68F27227271001c7f',
+      autoCommit: '0x314c8D5755468224AC60c36FB5494F0D7D5Abb3B',
+      claimLocker: '0x2fD3BE762eb9d8eE293dD923D8809Dbd3D653dd7',
+      multiClaim: '0x32783f1301147f6fb45c049a9546819655F81415',
+    },
+    {
+      label: 'Gas-optimized',
+      startRound: 12500,
+      lottery: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
+      autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
+      claimLocker: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
+      multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
+    },
+    {
+      label: 'Payload rollover',
+      startRound: 32600,
+      lottery: '0xA87F54aD6eC96B3E377B30811869f1B99A0e97b3',
+      autoCommit: '0xCe0569844f9FEDF25c0478EA97DB58023776bAad',
+      claimLocker: '0x2A76CF59617631195b7691d9381bF9Eb3C024cd0',
+      multiClaim: '0xc1C3318d469f58D58fef14FEea852fE8C35D01cA',
+    },
+  ],
 };
 
 /**
@@ -191,7 +241,20 @@ export const robinhoodChain = defineChain({
  * ```
  */
 export function lotteryForRound(deployment: SlvrDeployment, roundId: number | bigint): Address {
-  const { addresses, cutoverRound } = deployment;
+  const { addresses, cutoverRound, generations } = deployment;
+
+  // Walk the full history when it is there. The LAST generation whose startRound the round has
+  // reached owns it — scanning rather than taking the first match matters once more than one
+  // cutover is behind us, which is the case this exists for.
+  if (generations?.length) {
+    const round = BigInt(roundId);
+    let owner: SlvrGeneration | undefined;
+    for (const g of generations) if (round >= BigInt(g.startRound)) owner = g;
+    // Below the first generation's startRound there is no owner: fall back to the oldest, which
+    // is the contract that genesis rounds live on.
+    return (owner ?? generations[0]!).lottery;
+  }
+
   if (cutoverRound == null || !addresses.lotteryLegacy) return addresses.lottery;
   return BigInt(roundId) < BigInt(cutoverRound) ? addresses.lotteryLegacy : addresses.lottery;
 }
