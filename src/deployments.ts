@@ -131,14 +131,14 @@ export const robinhood: SlvrDeployment = {
     // Grid-game migration at round 12500 (2026-07-22). Only the LOTTERY generation changed:
     // token, staking, vote escrow, the pair and the price feeds are the same contracts they
     // have always been, and your SLVR balance, miner state and veNFT locks are untouched by it.
-    lottery: '0xA87F54aD6eC96B3E377B30811869f1B99A0e97b3',
-    lotteryLegacy: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
+    lottery: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
+    lotteryLegacy: '0x284Eb4016305Fa7FbC162Fb68F27227271001c7f',
     staking: '0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200',
     token: '0x791229E3EbD6CFdC3D8157f48722684173C29aD9',
-    autoCommit: '0xCe0569844f9FEDF25c0478EA97DB58023776bAad',
-    autoCommitLegacy: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
-    claimLockerV2: '0x2A76CF59617631195b7691d9381bF9Eb3C024cd0',
-    multiClaim: '0xc1C3318d469f58D58fef14FEea852fE8C35D01cA',
+    autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
+    autoCommitLegacy: '0x314c8D5755468224AC60c36FB5494F0D7D5Abb3B',
+    claimLockerV2: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
+    multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
     voteEscrow: '0xd9b8FBD61033145c5496132153CE675756313B71',
     slvrEthPair: '0xe365b92239097Ed3322131411DbE15a5c4068eff',
     // Chainlink ETH/USD feed (standard AggregatorV3 proxy; "ETH / USD", 8 decimals).
@@ -150,7 +150,7 @@ export const robinhood: SlvrDeployment = {
     // Multicall3 at its canonical cross-chain address (verified deployed on Robinhood Chain).
     multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   },
-  cutoverRound: 32600,
+  cutoverRound: 12500,
   // Oldest first. Append only: an old lottery is never paused, so its rounds stay claimable
   // forever and deleting an entry is the SDK losing its only route to money still owed.
   generations: [
@@ -169,14 +169,6 @@ export const robinhood: SlvrDeployment = {
       autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
       claimLocker: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
       multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
-    },
-    {
-      label: 'Payload rollover',
-      startRound: 32600,
-      lottery: '0xA87F54aD6eC96B3E377B30811869f1B99A0e97b3',
-      autoCommit: '0xCe0569844f9FEDF25c0478EA97DB58023776bAad',
-      claimLocker: '0x2A76CF59617631195b7691d9381bF9Eb3C024cd0',
-      multiClaim: '0xc1C3318d469f58D58fef14FEea852fE8C35D01cA',
     },
   ],
 };
