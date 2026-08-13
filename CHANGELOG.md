@@ -4,6 +4,47 @@ All notable changes to `@slvr-labs/sdk` are documented here. This project follow
 [Semantic Versioning](https://semver.org/); while `0.x`, the public API may still
 change between minor versions.
 
+## 0.4.0
+
+The grid game migrated to the miner-vault generation at **round 33500** (2026-08-13). As with
+every cutover only the game-layer contracts changed — but this one also moved WHERE miner state
+lives, which changes how cashing out works and makes this the last migration that touches it.
+
+### Added
+- `sdk.minerVault` and the `SlvrMinerVault` class — mined SLVR, dividends and the refining clock
+  now live in one vault (`addresses.minerVault`) shared by every generation from 33500 on.
+  `withdraw()` cashes out the whole position; `getMinerState`, `pendingDividends`,
+  `getRefiningFee` and `solvency` cover the reads; `migrateIn` and `migrationWindow` cover the
+  one-time deposit window. Future lottery upgrades no longer move miner state at all.
+- A third entry in `generations` ("Payload rollover", round 33500).
+
+### Changed
+- `addresses.lottery` now points at the vault-era lottery (`0xa1e5213…2A3D`); the gas-optimized
+  contract moves to `lotteryLegacy` and stays claimable forever. `autoCommit`, `claimLockerV2`
+  and `multiClaim` follow their generation the same way; `cutoverRound` is now 33500.
+- The refining fee DECAYS on this generation: 20% on freshly mined SLVR falling linearly to 10%
+  over 24 hours, priced at a per-wallet clock that BLENDS by weight on every credit (mining more
+  does not reset it). Older generations keep their flat 10%.
+- `subgraphUrl` still points at `slvr-robinhood/1.8.0`. The 1.9.0 index (all three generations
+  plus the vault) is deployed at the cutover and moves here in a follow-up once it reports
+  synced — pinning a subgraph before it exists is how consumers get a 404 for a deploy's worth
+  of time, and CI enforces that this value matches subgraph/config/endpoint.json.
+
+### Deprecated
+- `lottery.withdrawUnrefinedSlvr()` is generation-bound: it keeps working against the two older
+  generations (whose miner state is internal, claimable forever) and DOES NOT EXIST on vault-era
+  lotteries. Use `sdk.minerVault.withdraw()` there. See MIGRATING.md.
+
+## 0.3.0
+
+Groundwork for repeated migrations, released ahead of the round-33500 cutover (this entry was
+reconstructed from the release commit; 0.3.0 shipped without one).
+
+### Added
+- `generations` on `SlvrDeployment` — the full lottery generation chain, oldest first, replacing
+  the single lottery/lotteryLegacy/cutoverRound triple as the way to route a historical read.
+  Those three fields remain and now describe the newest boundary only.
+
 ## 0.2.0
 
 The SLVR grid game migrated to a new lottery contract at **round 12500**. `bet()` fell from a

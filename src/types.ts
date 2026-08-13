@@ -14,6 +14,11 @@ export interface SlvrConfig {
     staking: Address;
     token: Address;
     autoCommit?: Address;
+    /**
+     * SlvrMinerVault address (optional; present from the round-33500 generation on).
+     * Where mined SLVR lives — cashing it out goes through the vault, not the lottery.
+     */
+    minerVault?: Address;
     /** SlvrHub address (optional, for emission/staker/jackpot stats and keeper/admin ops) */
     hub?: Address;
     /** SlvrGameRegistry address (optional, for game weight/status stats) */

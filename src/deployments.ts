@@ -48,6 +48,8 @@ export interface SlvrDeployment {
      * `lottery`. Absent when a deployment has never been migrated.
      */
     lotteryLegacy?: Address;
+    /** Mined-SLVR vault, present from the round-33500 generation on. */
+    minerVault?: Address;
     /** SlvrVoteEscrowStaking (the veNFT staker) */
     staking: Address;
     /** SlvrToken (ERC20) */
@@ -128,17 +130,23 @@ export const robinhood: SlvrDeployment = {
   subgraphUrl:
     'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.8.0/gn',
   addresses: {
-    // Grid-game migration at round 12500 (2026-07-22). Only the LOTTERY generation changed:
-    // token, staking, vote escrow, the pair and the price feeds are the same contracts they
-    // have always been, and your SLVR balance, miner state and veNFT locks are untouched by it.
-    lottery: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
-    lotteryLegacy: '0x284Eb4016305Fa7FbC162Fb68F27227271001c7f',
+    // Grid-game migration at round 33500 (2026-08-13): the miner-vault generation. As with every
+    // cutover, only the game-layer contracts changed — token, staking, vote escrow, the pair and
+    // the price feeds are the same contracts they have always been. What is NEW this time is
+    // where miner state lives: the vault below holds every wallet's unrefined SLVR, dividends
+    // and refining clock, outside any one lottery, so this is the LAST cutover that moved them.
+    lottery: '0xa1e5213505772B195FD7AE3b4a6b27B58Cf72A3D',
+    lotteryLegacy: '0xB0Cc994Ce4E8fb106da9Eb36e26fDd8C5f1e0c71',
     staking: '0xaF68598eBd245DC3cB92FF16E9Ba1814DD137200',
     token: '0x791229E3EbD6CFdC3D8157f48722684173C29aD9',
-    autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
-    autoCommitLegacy: '0x314c8D5755468224AC60c36FB5494F0D7D5Abb3B',
-    claimLockerV2: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
-    multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
+    autoCommit: '0x34DD8699E4E9CB6bBA58e28F0233F6e23CeC0387',
+    autoCommitLegacy: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
+    claimLockerV2: '0x44B3D5b8D31251D49Ca4c88b6a82594947693A5C',
+    multiClaim: '0x740A66fc9201962f39802d924D4C2347cdf823A1',
+    // SlvrMinerVault: mined SLVR and its accounting, shared by every generation from round 33500
+    // on. Deployed once, ever — this address outlives lotteries, and cashing out mined SLVR goes
+    // through it (vault-era lotteries have no withdrawUnrefinedSlvr).
+    minerVault: '0x2070b4B0c57EaF070CF86cD8321a6054f3D25260',
     voteEscrow: '0xd9b8FBD61033145c5496132153CE675756313B71',
     slvrEthPair: '0xe365b92239097Ed3322131411DbE15a5c4068eff',
     // Chainlink ETH/USD feed (standard AggregatorV3 proxy; "ETH / USD", 8 decimals).
@@ -150,7 +158,7 @@ export const robinhood: SlvrDeployment = {
     // Multicall3 at its canonical cross-chain address (verified deployed on Robinhood Chain).
     multicall3: '0xcA11bde05977b3631167028862bE2a173976CA11',
   },
-  cutoverRound: 12500,
+  cutoverRound: 33500,
   // Oldest first. Append only: an old lottery is never paused, so its rounds stay claimable
   // forever and deleting an entry is the SDK losing its only route to money still owed.
   generations: [
@@ -169,6 +177,14 @@ export const robinhood: SlvrDeployment = {
       autoCommit: '0x5FD69EE67472495CDc0BE784898647782E073Ff5',
       claimLocker: '0x83F84C5d431a986a1AB209F902B954b5D3550d8c',
       multiClaim: '0x9F34a8561f97E388D4A1589c1D046C61d6915323',
+    },
+    {
+      label: 'Payload rollover',
+      startRound: 33500,
+      lottery: '0xa1e5213505772B195FD7AE3b4a6b27B58Cf72A3D',
+      autoCommit: '0x34DD8699E4E9CB6bBA58e28F0233F6e23CeC0387',
+      claimLocker: '0x44B3D5b8D31251D49Ca4c88b6a82594947693A5C',
+      multiClaim: '0x740A66fc9201962f39802d924D4C2347cdf823A1',
     },
   ],
 };

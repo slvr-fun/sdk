@@ -1,6 +1,7 @@
 import { PublicClient, WalletClient, Address, formatEther } from 'viem';
 import { SlvrConfig, PriceQuote } from './types';
 import { SlvrGridLottery } from './contracts/lottery';
+import { SlvrMinerVault } from './contracts/minerVault';
 import { SlvrStaking } from './contracts/staking';
 import { SlvrToken } from './contracts/token';
 import { SlvrAutoCommit } from './contracts/autoCommit';
@@ -59,6 +60,12 @@ export class SlvrSDK {
   public readonly staking: SlvrStaking;
   public readonly token: SlvrToken;
   public readonly autoCommit?: SlvrAutoCommit;
+  /**
+   * Mined-SLVR vault (present when `addresses.minerVault` is configured). From the round-33500
+   * generation on, cashing out mined SLVR is `sdk.minerVault.withdraw()` — the lottery's
+   * `withdrawUnrefinedSlvr` exists only on older generations.
+   */
+  public readonly minerVault?: SlvrMinerVault;
   public readonly hub?: SlvrHub;
   public readonly registry?: SlvrGameRegistry;
   public readonly jackpot?: SlvrJackpot;
@@ -97,6 +104,13 @@ export class SlvrSDK {
         config.publicClient,
         config.walletClient,
         config.addresses.autoCommit
+      );
+    }
+    if (config.addresses.minerVault) {
+      this.minerVault = new SlvrMinerVault(
+        config.publicClient,
+        config.walletClient,
+        config.addresses.minerVault
       );
     }
 
@@ -182,6 +196,9 @@ export class SlvrSDK {
     this.lottery.setWalletClient(walletClient);
     this.staking.setWalletClient(walletClient);
     this.token.setWalletClient(walletClient);
+    if (this.minerVault) {
+      this.minerVault.setWalletClient(walletClient);
+    }
     if (this.autoCommit) {
       this.autoCommit.setWalletClient(walletClient);
     }
@@ -531,6 +548,7 @@ export type { LockMode } from './contracts/autoCommit';
 export { SlvrHub } from './contracts/hub';
 export { SlvrGameRegistry } from './contracts/registry';
 export { SlvrJackpot } from './contracts/jackpot';
+export { SlvrMinerVault } from './contracts/minerVault';
 
 // Export errors
 export * from './errors';

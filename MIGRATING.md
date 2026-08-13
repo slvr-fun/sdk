@@ -10,6 +10,33 @@ SLVR/ETH pair and the price feeds are the same contracts they have always been. 
 balance, your unrefined miner state and your veNFT locks are not touched by any of this and
 require no action.
 
+## 0.3.x -> 0.4.0 (round 33500: the miner vault)
+
+Update the package and, if you cash out mined SLVR, change ONE call:
+
+```ts
+// before (0.3.x, gas-optimized generation)
+await sdk.lottery.withdrawUnrefinedSlvr();
+
+// after (0.4.0, vault generation)
+await sdk.minerVault.withdraw();
+```
+
+Everything else is address routing the SDK does for you: `addresses.lottery` now points at the
+vault-era lottery, the gas-optimized one moved to `lotteryLegacy`, and `generations` carries all
+three. Reads are unchanged — `sdk.lottery.getMinerState()` still answers, because vault-era
+lotteries proxy it to the vault.
+
+What actually moved: miner state (unrefined SLVR, dividends, the refining clock) now lives in
+`SlvrMinerVault`, outside any lottery, so this is the LAST migration that touches it. SLVR mined
+on the old generation did not move — cash it out there (`withdrawUnrefinedSlvr` against
+`lotteryLegacy` keeps working forever), and note the fee on THIS generation decays: 20% fresh
+falling to 10% over 24 hours, blended by weight on every credit rather than reset.
+
+If you hold SLVR and want it earning refining dividends, the one-time migration window
+(`sdk.minerVault.migrateIn`) is open for 24 hours after the cutover: one deposit per address,
+same terms as freshly mined SLVR. Check `sdk.minerVault.migrationWindow()` first.
+
 ## The short version
 
 ```bash

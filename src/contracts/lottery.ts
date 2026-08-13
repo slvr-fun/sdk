@@ -761,6 +761,12 @@ export class SlvrGridLottery {
    * withdraw. The exact `(totalPayout, refiningFee)` are in the emitted `Claimed`
    * event; this returns the transaction hash.
    */
+  /**
+   * GENERATION-BOUND. This function exists on the Original and Gas-optimized lotteries only;
+   * from the round-33500 generation on, miner state lives in the SlvrMinerVault and cashing it
+   * out is `sdk.minerVault.withdraw()`. Calling this against a vault-era lottery reverts.
+   * Against an OLDER generation it keeps working forever — retired lotteries are never paused.
+   */
   async withdrawUnrefinedSlvr(): Promise<`0x${string}`> {
     if (!this.walletClient) {
       throw new WalletClientRequiredError('withdrawing unrefined SLVR');
