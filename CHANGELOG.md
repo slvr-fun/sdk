@@ -4,6 +4,16 @@ All notable changes to `@slvr-labs/sdk` are documented here. This project follow
 [Semantic Versioning](https://semver.org/); while `0.x`, the public API may still
 change between minor versions.
 
+## 0.4.1
+
+### Changed
+- `subgraphUrl` now points at `slvr-robinhood/1.9.0`, which indexes all three lottery generations
+  plus the miner vault into the same continuous streams. 0.4.0 shipped pinned at 1.8.0 on purpose:
+  1.9.0 is deployed at the cutover and does not exist until then, and a package pinned to a
+  subgraph that has not been deployed hands every consumer a 404. Now that it is synced, this is
+  the version to use — 0.4.0 reads a subgraph that stops at the previous generation, so its round
+  history ends at round 33500.
+
 ## 0.4.0
 
 The grid game migrated to the miner-vault generation at **round 33500** (2026-08-13). As with
