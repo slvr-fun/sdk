@@ -128,7 +128,7 @@ export const robinhood: SlvrDeployment = {
   // the SDK didn't — and that subgraph later stopped indexing, leaving consumers of this default
   // reading data ~4 days stale.
   subgraphUrl:
-    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.8.0/gn',
+    'https://api.goldsky.com/api/public/project_cmre158qbffn101xe929tflsk/subgraphs/slvr-robinhood/1.9.0/gn',
   addresses: {
     // Grid-game migration at round 33500 (2026-08-13): the miner-vault generation. As with every
     // cutover, only the game-layer contracts changed — token, staking, vote escrow, the pair and
